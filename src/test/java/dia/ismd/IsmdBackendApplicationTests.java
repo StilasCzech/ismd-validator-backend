@@ -13,6 +13,7 @@ class IsmdBackendApplicationTests {
     void contextLoads() {
     }
 
+
     @Test
     void modulesTest(){
         ApplicationModules.of(IsmdBackendApplication.class).verify();
