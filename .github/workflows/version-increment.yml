@@ -1,0 +1,35 @@
+name: Increment version
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+
+jobs:
+  version-bump:
+    if: ${{ !contains(github.event.head_commit.message, 'Bump version to') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Bump version if not manually changed
+        run: |
+          CURRENT_VERSION=$(./mvnw help:evaluate -DforceStdout -q -Dexpression=project.version)
+          if git rev-parse HEAD~1 >/dev/null 2>&1; then
+            PREV_VERSION=$(git show HEAD~1:pom.xml | grep '<version>' | head -1 | sed -E 's/.*<version>([^<]+)<.*/\1/')
+          else
+            PREV_VERSION=""
+          fi
+          if [ -n "$PREV_VERSION" ] && [ "$CURRENT_VERSION" = "$PREV_VERSION" ]; then
+            NEW_VERSION=$(echo $CURRENT_VERSION | awk -F. -v OFS=. '{$NF++;print}')
+            mvn versions:set -DnewVersion="$NEW_VERSION"
+            mvn versions:commit
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add pom.xml
+            git commit -m "Bump version to $NEW_VERSION"
+            git push
+          else
+            echo "No previous version to compare or version was manually changed ($PREV_VERSION -> $CURRENT_VERSION), skipping auto-increment"
+          fi
