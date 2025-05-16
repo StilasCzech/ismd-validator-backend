@@ -106,13 +106,14 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
           
+      # Fixed GitHub CLI authentication
       - name: Setup GitHub CLI
-        run: |
-          gh auth login --with-token <<< "${{ github.token }}"
+        run: echo "${{ github.token }}" > ~/.github-token
+        
+      - name: Bump version
         env:
           GH_TOKEN: ${{ github.token }}
 
-      - name: Bump version
         run: |
           # Get the current project version
           CURRENT_VERSION=$(./mvnw help:evaluate -DforceStdout -q -Dexpression=project.version)
@@ -138,7 +139,7 @@ jobs:
           git commit -m "v$NEW_VERSION"
           git push origin $BRANCH_NAME
           
-          # Create a PR
+          # Create a PR using GitHub CLI
           gh pr create \
             --title "v$NEW_VERSION" \
             --body "Automated version bump to v$NEW_VERSION" \
@@ -147,6 +148,7 @@ jobs:
             --label "automated-pr" \
             --label "version-bump"
 
+  # Sync dev with main after Docker build
   sync-dev:
     needs: build-docker
     if: success()
@@ -156,13 +158,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: main
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ github.token }}
 
       - name: Create PR from main to dev
         id: cpr
         uses: peter-evans/create-pull-request@v7
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ github.token }}
           commit-message: "Sync dev with main after version bump"
           branch: auto/sync-main-to-dev
           base: dev
@@ -178,6 +180,6 @@ jobs:
         if: steps.cpr.outputs.pull-request-operation == 'created'
         uses: pascalgn/automerge-action@v0.16.3
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
           MERGE_LABELS: automated-pr,sync
           MERGE_METHOD: squash
