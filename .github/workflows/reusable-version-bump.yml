@@ -2,16 +2,29 @@ name: Reusable Version Bump Workflow
 
 on:
   workflow_call:
+    inputs:
+      github_token:
+        description: "GitHub token for authentication"
+        required: true
+        type: string
     outputs:
       version_bumped:
         description: "Whether the version was bumped"
         value: ${{ jobs.version-bump.outputs.version_bumped }}
+      new_version:
+        description: "The new version that was set"
+        value: ${{ jobs.version-bump.outputs.new_version }}
+      branch_name:
+        description: "The branch name created for the version bump"
+        value: ${{ jobs.version-bump.outputs.branch_name }}
 
 jobs:
   version-bump:
     runs-on: ubuntu-latest
     outputs:
       version_bumped: ${{ steps.bump-version.outputs.version_bumped }}
+      new_version: ${{ steps.bump-version.outputs.new_version }}
+      branch_name: ${{ steps.bump-version.outputs.branch_name }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -23,6 +36,14 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+          
+      - name: Setup GitHub CLI
+        run: |
+          echo "${{ inputs.github_token }}" > gh_token.txt
+          gh auth login --with-token < gh_token.txt
+          rm gh_token.txt
+        env:
+          GH_TOKEN: ${{ inputs.github_token }}
 
       - name: Bump version if not manually changed
         id: bump-version
@@ -48,13 +69,32 @@ jobs:
             echo "Bumping version to: $NEW_VERSION"
             mvn versions:set -DnewVersion="$NEW_VERSION"
             mvn versions:commit
+            # Create a new branch for the version bump
+            BRANCH_NAME="version-bump-$NEW_VERSION"
+            git checkout -b $BRANCH_NAME
+            
+            # Configure git
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
+            
+            # Commit the version change
             git add pom.xml
             git commit -m "v$NEW_VERSION"
-            git push
-            echo "Version bumped and pushed to v$NEW_VERSION"
+            git push origin $BRANCH_NAME
+            
+            # Create a PR using GitHub CLI
+            gh pr create \
+              --title "v$NEW_VERSION" \
+              --body "Automated version bump to v$NEW_VERSION" \
+              --base main \
+              --head $BRANCH_NAME \
+              --label "automated-pr" \
+              --label "version-bump"
+            
+            echo "Version bump PR created for v$NEW_VERSION"
             echo "version_bumped=true" >> $GITHUB_OUTPUT
+            echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
           else
             echo "Version was manually changed ($PREV_VERSION -> $CURRENT_VERSION), skipping auto-increment"
             echo "version_bumped=false" >> $GITHUB_OUTPUT

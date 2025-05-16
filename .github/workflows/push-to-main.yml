@@ -15,12 +15,14 @@ jobs:
     # Skip version bump if commit message already starts with v (e.g., v1.2.3)
     if: ${{ !startsWith(github.event.head_commit.message, 'v') }}
     uses: ./.github/workflows/reusable-version-bump.yml
+    with:
+      github_token: ${{ secrets.GITHUB_TOKEN }}
 
-  # This job runs only when the version changes (auto or manual)
+  # This job runs only when the commit message indicates a version change
   build-docker:
     needs: [run-tests, bump-version]
     # Only run if the commit message starts with v followed by a number (e.g., v1.2.3)
-    # This happens after auto-version bump or manual version change
+    # This happens when a version bump PR is merged or a manual version change is pushed
     if: |
       startsWith(github.event.head_commit.message, 'v') && contains(github.event.head_commit.message, '.')
     uses: ./.github/workflows/reusable-docker-build.yml
