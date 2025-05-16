@@ -1,4 +1,4 @@
-name: Auto Sync Dev with Main
+name: Push to Main Workflow
 
 on:
   push:
@@ -6,8 +6,24 @@ on:
       - main
 
 jobs:
+  run-tests:
+    uses: ./.github/workflows/reusable-test.yml
+    with:
+      skip-if-version-bump: true  # Skip tests on version bump commits
+
+  bump-version:
+    if: ${{ !contains(github.event.head_commit.message, 'Bump version to') }}
+    uses: ./.github/workflows/reusable-version-bump.yml
+
+  build-docker:
+    if: ${{ contains(github.event.head_commit.message, 'Bump version to') }}
+    uses: ./.github/workflows/reusable-docker-build.yml
+    with:
+      branch: main
+
   sync-dev:
-    if: contains(github.event.head_commit.message, 'Bump version to')
+    needs: build-docker
+    if: ${{ contains(github.event.head_commit.message, 'Bump version to') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main

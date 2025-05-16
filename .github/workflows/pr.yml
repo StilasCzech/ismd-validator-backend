@@ -1,0 +1,12 @@
+name: PR Workflow
+
+on:
+  pull_request:
+    paths:
+      - '**'
+
+jobs:
+  run-tests:
+    uses: ./.github/workflows/reusable-test.yml
+    with:
+      skip-if-version-bump: false  # Always run tests on PRs
