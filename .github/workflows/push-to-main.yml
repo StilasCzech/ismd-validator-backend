@@ -113,6 +113,7 @@ jobs:
       - name: Bump version
         env:
           GH_TOKEN: ${{ github.token }}
+
         run: |
           # Get the current project version
           CURRENT_VERSION=$(./mvnw help:evaluate -DforceStdout -q -Dexpression=project.version)
