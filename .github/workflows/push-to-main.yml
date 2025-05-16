@@ -8,6 +8,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  packages: write
 
 jobs:
   # Check if the version in pom.xml has changed
@@ -73,13 +74,14 @@ jobs:
         with: 
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ github.token }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set IMAGE_TAG
         run: |
-          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          IMAGE_TAG=ghcr.io/${REPO_LOWER}:${VERSION}
-          LATEST_TAG=ghcr.io/${REPO_LOWER}:latest
+          # Use a package name that won't conflict with future organization usage
+          # Using 'fork-' prefix to clearly indicate this is your fork
+          IMAGE_TAG=ghcr.io/stilasczech/fork-ismd-validator:${VERSION}
+          LATEST_TAG=ghcr.io/stilasczech/fork-ismd-validator:latest
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
           echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
 
@@ -108,11 +110,11 @@ jobs:
           
       # Fixed GitHub CLI authentication
       - name: Setup GitHub CLI
-        run: echo "${{ github.token }}" > ~/.github-token
+        run: echo "${{ secrets.GITHUB_TOKEN }}" > ~/.github-token
         
       - name: Bump version
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Get the current project version
           CURRENT_VERSION=$(./mvnw help:evaluate -DforceStdout -q -Dexpression=project.version)
@@ -155,13 +157,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: main
-          token: ${{ github.token }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create PR from main to dev
         id: cpr
         uses: peter-evans/create-pull-request@v7
         with:
-          token: ${{ github.token }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "Sync dev with main after version bump"
           branch: auto/sync-main-to-dev
           base: dev
@@ -175,6 +177,6 @@ jobs:
         if: steps.cpr.outputs.pull-request-operation == 'created'
         uses: pascalgn/automerge-action@v0.16.3
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MERGE_LABELS: ""
           MERGE_METHOD: squash
