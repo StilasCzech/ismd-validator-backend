@@ -155,10 +155,56 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: main
+          fetch-depth: 0  # Get full history
+          token: ${{ github.token }}
+          
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          
+      - name: Get main version
+        id: main-version
+        run: echo "version=$(./mvnw help:evaluate -DforceStdout -q -Dexpression=project.version)" >> $GITHUB_OUTPUT
+        
+      - name: Checkout dev
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+          path: dev-branch
+          fetch-depth: 0  # Get full history
+          token: ${{ github.token }}
+          
+      - name: Get dev version
+        id: dev-version
+        run: |
+          cd dev-branch
+          echo "version=$(./mvnw help:evaluate -DforceStdout -q -Dexpression=project.version)" >> $GITHUB_OUTPUT
+          
+      - name: Compare versions
+        id: compare
+        run: |
+          echo "Main version: ${{ steps.main-version.outputs.version }}"
+          echo "Dev version: ${{ steps.dev-version.outputs.version }}"
+          if [ "${{ steps.main-version.outputs.version }}" != "${{ steps.dev-version.outputs.version }}" ]; then
+            echo "Versions are different, will create PR"
+            echo "create_pr=true" >> $GITHUB_OUTPUT
+          else
+            echo "Versions are the same, no PR needed"
+            echo "create_pr=false" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Checkout main again
+        if: steps.compare.outputs.create_pr == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: main
           token: ${{ github.token }}
 
       - name: Create PR from main to dev
         id: cpr
+        if: steps.compare.outputs.create_pr == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ github.token }}
