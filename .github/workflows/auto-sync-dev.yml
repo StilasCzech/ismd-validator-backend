@@ -1,0 +1,41 @@
+name: Auto Sync Dev with Main
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sync-dev:
+    if: contains(github.event.head_commit.message, 'Bump version to')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create PR from main to dev
+        id: cpr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Sync dev with main after version bump"
+          branch: auto/sync-main-to-dev
+          base: dev
+          title: "Sync dev with main after version bump"
+          body: |
+            Automated PR to sync dev with main after version bump.
+            This will auto-merge if there are no conflicts.
+          delete-branch: true
+          draft: false
+          labels: automated-pr, sync
+
+      - name: Auto-merge PR if possible
+        if: steps.cpr.outputs.pull-request-operation == 'created'
+        uses: pascalgn/automerge-action@v0.16.3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MERGE_LABELS: automated-pr,sync
+          MERGE_METHOD: squash
