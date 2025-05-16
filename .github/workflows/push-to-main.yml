@@ -113,7 +113,6 @@ jobs:
       - name: Bump version
         env:
           GH_TOKEN: ${{ github.token }}
-
         run: |
           # Get the current project version
           CURRENT_VERSION=$(./mvnw help:evaluate -DforceStdout -q -Dexpression=project.version)
@@ -144,9 +143,7 @@ jobs:
             --title "v$NEW_VERSION" \
             --body "Automated version bump to v$NEW_VERSION" \
             --base main \
-            --head $BRANCH_NAME \
-            --label "automated-pr" \
-            --label "version-bump"
+            --head $BRANCH_NAME
 
   # Sync dev with main after Docker build
   sync-dev:
@@ -171,15 +168,13 @@ jobs:
           title: "Sync dev with main after version bump"
           body: |
             Automated PR to sync dev with main after version bump.
-            This will auto-merge if there are no conflicts.
           delete-branch: true
           draft: false
-          labels: automated-pr, sync
 
       - name: Auto-merge PR if possible
         if: steps.cpr.outputs.pull-request-operation == 'created'
         uses: pascalgn/automerge-action@v0.16.3
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          MERGE_LABELS: automated-pr,sync
+          MERGE_LABELS: ""
           MERGE_METHOD: squash
