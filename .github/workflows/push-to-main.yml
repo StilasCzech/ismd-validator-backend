@@ -5,6 +5,10 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   run-tests:
     uses: ./.github/workflows/reusable-test.yml
@@ -16,7 +20,10 @@ jobs:
     if: ${{ !startsWith(github.event.head_commit.message, 'v') }}
     uses: ./.github/workflows/reusable-version-bump.yml
     with:
-      github_token: ${{ secrets.GITHUB_TOKEN }}
+      github_token: ${{ github.token }}
+    permissions:
+      contents: write
+      pull-requests: write
 
   # This job runs only when the commit message indicates a version change
   build-docker:
