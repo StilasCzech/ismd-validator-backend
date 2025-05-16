@@ -1,10 +1,9 @@
-name: Increment version
+name: Version Bump
 
 on:
   push:
     branches:
       - main
-      - dev
 
 jobs:
   version-bump:
