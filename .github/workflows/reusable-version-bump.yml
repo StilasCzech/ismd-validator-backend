@@ -45,7 +45,7 @@ jobs:
         env:
           GH_TOKEN: ${{ inputs.github_token }}
 
-      - name: Bump version if not manually changed
+      - name: Check if version needs to be bumped
         id: bump-version
         run: |
           # Get the current project version (not parent version)
