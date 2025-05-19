@@ -120,5 +120,4 @@ jobs:
             - All changes from dev branch
             
             Once merged, this will trigger a Docker build with the new version.
-          labels: release
           draft: false
