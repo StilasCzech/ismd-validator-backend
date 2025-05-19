@@ -43,9 +43,9 @@ jobs:
         id: main-version
         run: |
           # Get main branch version without checking it out
-          git show main:pom.xml > main-pom.xml
+          git show main:pom.xml > /tmp/main-pom.xml
           ARTIFACT_ID=$(./mvnw help:evaluate -DforceStdout -q -Dexpression=project.artifactId)
-          MAIN_VERSION=$(grep -A 10 "<artifactId>$ARTIFACT_ID</artifactId>" main-pom.xml | grep '<version>' | head -1 | sed -E 's/.*<version>([^<]+)<.*/\1/')
+          MAIN_VERSION=$(grep -A 10 "<artifactId>$ARTIFACT_ID</artifactId>" /tmp/main-pom.xml | grep '<version>' | head -1 | sed -E 's/.*<version>([^<]+)<.*/\1/')
           echo "version=$MAIN_VERSION" >> $GITHUB_OUTPUT
           echo "Main branch version: $MAIN_VERSION"
 
@@ -92,12 +92,12 @@ jobs:
           # Commit the version change
           git add pom.xml
           git commit -m "Release v${{ steps.new-version.outputs.version }}"
-          
+
       - name: Run tests
         run: |
           # Build and run tests to ensure the release is stable
           ./mvnw clean test
-          
+
       - name: Push release branch
         run: |
           # Only push if tests pass
@@ -116,35 +116,35 @@ jobs:
             gh pr create \
               --title "Release v${{ steps.new-version.outputs.version }}" \
               --body "# Release v${{ steps.new-version.outputs.version }}
-              
+          
               This PR updates the version from v${{ steps.current-version.outputs.version }} to v${{ steps.new-version.outputs.version }} and merges changes from dev into main.
-              
+          
               ## Changes included:
               - Version bump to v${{ steps.new-version.outputs.version }}
               - All changes from dev branch
-              
+          
               Once merged, this will trigger a Docker build with the new version." \
               --base main \
               --head $BRANCH_NAME
-            
+          
             echo "Created new PR from $BRANCH_NAME to main"
           else
             # PR already exists, just update the description
             PR_NUMBER=$(gh pr list --head $BRANCH_NAME --base main --json number --jq '.[0].number')
-            
+          
             gh pr edit $PR_NUMBER \
               --title "Release v${{ steps.new-version.outputs.version }}" \
               --body "# Release v${{ steps.new-version.outputs.version }}
-              
+          
               This PR updates the version from v${{ steps.current-version.outputs.version }} to v${{ steps.new-version.outputs.version }} and merges changes from dev into main.
-              
+          
               ## Changes included:
               - Version bump to v${{ steps.new-version.outputs.version }}
               - All changes from dev branch
-              
+          
               Once merged, this will trigger a Docker build with the new version.
-              
+          
               *Updated on $(date)*"
-            
+          
             echo "Updated existing PR #$PR_NUMBER"
           fi
