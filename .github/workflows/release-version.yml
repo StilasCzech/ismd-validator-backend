@@ -94,11 +94,11 @@ jobs:
             # Update the version in pom.xml
             mvn versions:set -DnewVersion="$NEW_VERSION"
             mvn versions:commit
-          
+            
             # Configure git
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-          
+            
             # Commit the version change
             git add pom.xml
             git commit -m "Release v$NEW_VERSION"
@@ -109,12 +109,12 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
           fi
-
+          
       - name: Run tests
         run: |
           # Build and run tests to ensure the release is stable
           ./mvnw clean test
-
+          
       - name: Push release branch
         run: |
           # Only push if tests pass
@@ -133,35 +133,35 @@ jobs:
             gh pr create \
               --title "Release v${{ steps.new-version.outputs.version }}" \
               --body "# Release v${{ steps.new-version.outputs.version }}
-          
+              
               This PR updates the version from v${{ steps.current-version.outputs.version }} to v${{ steps.new-version.outputs.version }} and merges changes from dev into main.
-          
+              
               ## Changes included:
               - Version bump to v${{ steps.new-version.outputs.version }}
               - All changes from dev branch
-          
+              
               Once merged, this will trigger a Docker build with the new version." \
               --base main \
               --head $BRANCH_NAME
-          
+            
             echo "Created new PR from $BRANCH_NAME to main"
           else
             # PR already exists, just update the description
             PR_NUMBER=$(gh pr list --head $BRANCH_NAME --base main --json number --jq '.[0].number')
-          
+            
             gh pr edit $PR_NUMBER \
               --title "Release v${{ steps.new-version.outputs.version }}" \
               --body "# Release v${{ steps.new-version.outputs.version }}
-          
+              
               This PR updates the version from v${{ steps.current-version.outputs.version }} to v${{ steps.new-version.outputs.version }} and merges changes from dev into main.
-          
+              
               ## Changes included:
               - Version bump to v${{ steps.new-version.outputs.version }}
               - All changes from dev branch
-          
+              
               Once merged, this will trigger a Docker build with the new version.
-          
+              
               *Updated on $(date)*"
-          
+              
             echo "Updated existing PR #$PR_NUMBER"
           fi
