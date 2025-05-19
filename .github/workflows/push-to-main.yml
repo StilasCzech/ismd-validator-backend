@@ -21,18 +21,23 @@ jobs:
     needs: build-docker
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Get full history
-          token: ${{ github.token }}
+      
+      - name: Set up SSH agent
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_KEY }}
       
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin git@github.com:${{ github.repository }}.git
       
       - name: Merge main into dev
         run: |
@@ -46,5 +51,4 @@ jobs:
           echo "Merging main into dev..."
           git merge origin/main -m "Sync dev with main after release [skip ci]"
           
-          # Push the changes
-          git push origin dev
+          # Push the changes using SSH
