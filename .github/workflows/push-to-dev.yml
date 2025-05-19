@@ -1,15 +1,17 @@
-name: Push to Dev Workflow
+name: Build Docker on Dev
 
 on:
   push:
     branches:
       - dev
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   run-tests:
     uses: ./.github/workflows/reusable-test.yml
-    with:
-      skip-if-version-bump: true  # Skip tests on version bump commits
 
   build-docker:
     needs: run-tests

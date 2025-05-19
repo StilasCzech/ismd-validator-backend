@@ -4,9 +4,12 @@ on:
   pull_request:
     paths:
       - '**'
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
 
 jobs:
   run-tests:
     uses: ./.github/workflows/reusable-test.yml
-    with:
-      skip-if-version-bump: false  # Always run tests on PRs
