@@ -42,10 +42,9 @@ jobs:
       - name: Get version in main
         id: main-version
         run: |
-          # Get main branch version without checking it out
-          git show main:pom.xml > /tmp/main-pom.xml
+          # Get main branch version by directly parsing the output of git show
           ARTIFACT_ID=$(./mvnw help:evaluate -DforceStdout -q -Dexpression=project.artifactId)
-          MAIN_VERSION=$(grep -A 10 "<artifactId>$ARTIFACT_ID</artifactId>" /tmp/main-pom.xml | grep '<version>' | head -1 | sed -E 's/.*<version>([^<]+)<.*/\1/')
+          MAIN_VERSION=$(git show main:pom.xml | grep -A 10 "<artifactId>$ARTIFACT_ID</artifactId>" | grep '<version>' | head -1 | sed -E 's/.*<version>([^<]+)<.*/\1/')
           echo "version=$MAIN_VERSION" >> $GITHUB_OUTPUT
           echo "Main branch version: $MAIN_VERSION"
 
@@ -89,11 +88,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Remove any main-pom.xml file if it exists
-          if [ -f "main-pom.xml" ]; then
-            rm main-pom.xml
-            echo "Removed main-pom.xml file"
-          fi
+          # No need to handle main-pom.xml as we're no longer creating it
           
           # Commit the version change
           git add pom.xml
