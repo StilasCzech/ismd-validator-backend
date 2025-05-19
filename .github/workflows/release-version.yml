@@ -89,6 +89,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
+          # Remove any main-pom.xml file if it exists
+          if [ -f "main-pom.xml" ]; then
+            rm main-pom.xml
+            echo "Removed main-pom.xml file"
+          fi
+          
           # Commit the version change
           git add pom.xml
           git commit -m "Release v${{ steps.new-version.outputs.version }}"
