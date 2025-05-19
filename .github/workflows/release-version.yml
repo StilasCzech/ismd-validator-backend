@@ -104,21 +104,47 @@ jobs:
           git push origin ${{ steps.create-branch.outputs.branch_name }}
 
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v7
-        with:
-          token: ${{ github.token }}
-          base: main
-          branch: ${{ steps.create-branch.outputs.branch_name }}
-          title: "Release v${{ steps.new-version.outputs.version }}"
-          body: |
-            # Release v${{ steps.new-version.outputs.version }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Check if PR already exists
+          BRANCH_NAME="${{ steps.create-branch.outputs.branch_name }}"
+          PR_EXISTS=$(gh pr list --head $BRANCH_NAME --base main --json number --jq 'length')
+          
+          if [ "$PR_EXISTS" = "0" ]; then
+            # Create new PR
+            gh pr create \
+              --title "Release v${{ steps.new-version.outputs.version }}" \
+              --body "# Release v${{ steps.new-version.outputs.version }}
+              
+              This PR updates the version from v${{ steps.current-version.outputs.version }} to v${{ steps.new-version.outputs.version }} and merges changes from dev into main.
+              
+              ## Changes included:
+              - Version bump to v${{ steps.new-version.outputs.version }}
+              - All changes from dev branch
+              
+              Once merged, this will trigger a Docker build with the new version." \
+              --base main \
+              --head $BRANCH_NAME
             
-            This PR updates the version from v${{ steps.current-version.outputs.version }} to v${{ steps.new-version.outputs.version }} and merges changes from dev into main.
+            echo "Created new PR from $BRANCH_NAME to main"
+          else
+            # PR already exists, just update the description
+            PR_NUMBER=$(gh pr list --head $BRANCH_NAME --base main --json number --jq '.[0].number')
             
-            ## Changes included:
-            - Version bump to v${{ steps.new-version.outputs.version }}
-            - All changes from dev branch
+            gh pr edit $PR_NUMBER \
+              --title "Release v${{ steps.new-version.outputs.version }}" \
+              --body "# Release v${{ steps.new-version.outputs.version }}
+              
+              This PR updates the version from v${{ steps.current-version.outputs.version }} to v${{ steps.new-version.outputs.version }} and merges changes from dev into main.
+              
+              ## Changes included:
+              - Version bump to v${{ steps.new-version.outputs.version }}
+              - All changes from dev branch
+              
+              Once merged, this will trigger a Docker build with the new version.
+              
+              *Updated on $(date)*"
             
-            Once merged, this will trigger a Docker build with the new version.
-          labels: release
-          draft: false
+            echo "Updated existing PR #$PR_NUMBER"
+          fi
