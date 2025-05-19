@@ -78,21 +78,37 @@ jobs:
         run: |
           BRANCH_NAME="release-v${{ steps.new-version.outputs.version }}"
           echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          
+          # Make sure we're on dev branch
+          git checkout dev
+          
+          # Create a new branch from dev
           git checkout -b $BRANCH_NAME
           
-          # Update the version in pom.xml
-          mvn versions:set -DnewVersion="${{ steps.new-version.outputs.version }}"
-          mvn versions:commit
+          # Check if the version needs to be updated
+          CURRENT_VERSION="${{ steps.current-version.outputs.version }}"
+          NEW_VERSION="${{ steps.new-version.outputs.version }}"
           
-          # Configure git
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ "$CURRENT_VERSION" != "$NEW_VERSION" ]; then
+            echo "Updating version from $CURRENT_VERSION to $NEW_VERSION"
+            # Update the version in pom.xml
+            mvn versions:set -DnewVersion="$NEW_VERSION"
+            mvn versions:commit
           
-          # No need to handle main-pom.xml as we're no longer creating it
+            # Configure git
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Commit the version change
-          git add pom.xml
-          git commit -m "Release v${{ steps.new-version.outputs.version }}"
+            # Commit the version change
+            git add pom.xml
+            git commit -m "Release v$NEW_VERSION"
+            echo "Version updated and committed"
+          else
+            echo "Version is already $CURRENT_VERSION, no update needed"
+            # Configure git anyway for later steps
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+          fi
 
       - name: Run tests
         run: |
