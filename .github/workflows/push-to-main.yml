@@ -52,4 +52,3 @@ jobs:
           git merge origin/main -m "Sync dev with main after release [skip ci]"
           
           # Push the changes using SSH
-          git push origin dev
