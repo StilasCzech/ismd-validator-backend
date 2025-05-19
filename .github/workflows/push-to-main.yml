@@ -39,17 +39,17 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin git@github.com:${{ github.repository }}.git
       
-      - name: Merge main into dev
+      - name: Recreate dev from main
         run: |
-          # Get the current main and dev branches
-          git fetch origin main dev
+          # Get the current main branch
+          git fetch origin main
           
-          # Check out dev branch
-          git checkout dev
+          # Create a temporary branch from main
+          git checkout main
+          git checkout -b temp-dev
           
-          # Merge main into dev
-          echo "Merging main into dev..."
-          git merge origin/main -m "Sync dev with main after release [skip ci]"
+          # Force push this branch to dev
+          echo "Recreating dev from main..."
+          git push --force origin temp-dev:dev
           
-          # Push the changes using SSH
-          git push origin dev
+          echo "Dev branch has been recreated from main"
