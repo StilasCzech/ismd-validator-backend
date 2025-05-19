@@ -42,10 +42,9 @@ jobs:
       - name: Get version in main
         id: main-version
         run: |
-          # Get main branch version without checking it out
-          git show main:pom.xml > main-pom.xml
+          # Get main branch version by directly parsing the output of git show
           ARTIFACT_ID=$(./mvnw help:evaluate -DforceStdout -q -Dexpression=project.artifactId)
-          MAIN_VERSION=$(grep -A 10 "<artifactId>$ARTIFACT_ID</artifactId>" main-pom.xml | grep '<version>' | head -1 | sed -E 's/.*<version>([^<]+)<.*/\1/')
+          MAIN_VERSION=$(git show main:pom.xml | grep -A 10 "<artifactId>$ARTIFACT_ID</artifactId>" | grep '<version>' | head -1 | sed -E 's/.*<version>([^<]+)<.*/\1/')
           echo "version=$MAIN_VERSION" >> $GITHUB_OUTPUT
           echo "Main branch version: $MAIN_VERSION"
 
@@ -79,25 +78,43 @@ jobs:
         run: |
           BRANCH_NAME="release-v${{ steps.new-version.outputs.version }}"
           echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          
+          # Make sure we're on dev branch
+          git checkout dev
+          
+          # Create a new branch from dev
           git checkout -b $BRANCH_NAME
           
-          # Update the version in pom.xml
-          mvn versions:set -DnewVersion="${{ steps.new-version.outputs.version }}"
-          mvn versions:commit
+          # Check if the version needs to be updated
+          CURRENT_VERSION="${{ steps.current-version.outputs.version }}"
+          NEW_VERSION="${{ steps.new-version.outputs.version }}"
           
-          # Configure git
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ "$CURRENT_VERSION" != "$NEW_VERSION" ]; then
+            echo "Updating version from $CURRENT_VERSION to $NEW_VERSION"
+            # Update the version in pom.xml
+            mvn versions:set -DnewVersion="$NEW_VERSION"
+            mvn versions:commit
           
-          # Commit the version change
-          git add pom.xml
-          git commit -m "Release v${{ steps.new-version.outputs.version }}"
+            # Configure git
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
           
+            # Commit the version change
+            git add pom.xml
+            git commit -m "Release v$NEW_VERSION"
+            echo "Version updated and committed"
+          else
+            echo "Version is already $CURRENT_VERSION, no update needed"
+            # Configure git anyway for later steps
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+          fi
+
       - name: Run tests
         run: |
           # Build and run tests to ensure the release is stable
           ./mvnw clean test
-          
+
       - name: Push release branch
         run: |
           # Only push if tests pass
@@ -116,35 +133,35 @@ jobs:
             gh pr create \
               --title "Release v${{ steps.new-version.outputs.version }}" \
               --body "# Release v${{ steps.new-version.outputs.version }}
-              
+          
               This PR updates the version from v${{ steps.current-version.outputs.version }} to v${{ steps.new-version.outputs.version }} and merges changes from dev into main.
-              
+          
               ## Changes included:
               - Version bump to v${{ steps.new-version.outputs.version }}
               - All changes from dev branch
-              
+          
               Once merged, this will trigger a Docker build with the new version." \
               --base main \
               --head $BRANCH_NAME
-            
+          
             echo "Created new PR from $BRANCH_NAME to main"
           else
             # PR already exists, just update the description
             PR_NUMBER=$(gh pr list --head $BRANCH_NAME --base main --json number --jq '.[0].number')
-            
+          
             gh pr edit $PR_NUMBER \
               --title "Release v${{ steps.new-version.outputs.version }}" \
               --body "# Release v${{ steps.new-version.outputs.version }}
-              
+          
               This PR updates the version from v${{ steps.current-version.outputs.version }} to v${{ steps.new-version.outputs.version }} and merges changes from dev into main.
-              
+          
               ## Changes included:
               - Version bump to v${{ steps.new-version.outputs.version }}
               - All changes from dev branch
-              
+          
               Once merged, this will trigger a Docker build with the new version.
-              
+          
               *Updated on $(date)*"
-            
+          
             echo "Updated existing PR #$PR_NUMBER"
           fi
