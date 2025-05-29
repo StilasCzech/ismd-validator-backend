@@ -81,22 +81,16 @@ jobs:
             
             echo "Building $MODULE with tags: $IMAGE_TAG, $LATEST_TAG"
             
-            # Debug: Show current directory and files
-            echo "Current directory: $(pwd)"
-            echo "Directory contents:"
-            ls -la
-            
-            # Set build context and Dockerfile path
-            DOCKERFILE="ismd-backend-${MODULE}/Dockerfile"
-            BUILD_CONTEXT="."
-            
-            echo "Looking for Dockerfile at: $DOCKERFILE"
-            if [ -f "$DOCKERFILE" ]; then
-              echo "Dockerfile found at $DOCKERFILE"
+            # Set build context and Dockerfile path based on whether this is a module or root build
+            if [ "$MODULE" = "root" ]; then
+              DOCKERFILE="Dockerfile"
+              BUILD_CONTEXT="."
             else
-              echo "ERROR: Dockerfile not found at $DOCKERFILE"
-              exit 1
+              DOCKERFILE="ismd-backend-${MODULE}/Dockerfile"
+              BUILD_CONTEXT="./ismd-backend-${MODULE}"
             fi
+            
+            echo "Building with Dockerfile: $DOCKERFILE in context: $BUILD_CONTEXT"
             
             # Build and push the image
             docker build \
