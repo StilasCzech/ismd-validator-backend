@@ -59,21 +59,28 @@ jobs:
             exit 0
           fi
           
-          # Check for module changes
-          if grep -q '^ismd-backend-common/' relevant_changes.txt; then
-            echo "Common module files changed"
+          # Check for workflow changes that require both modules to be rebuilt
+          if grep -q '^\.github/workflows/' relevant_changes.txt; then
+            echo "Workflow files changed, rebuilding both modules"
             echo "build-common=true" >> $GITHUB_OUTPUT
-          else
-            echo "No common module changes"
-            echo "build-common=false" >> $GITHUB_OUTPUT
-          fi
-          
-          if grep -q '^ismd-backend-validator/' relevant_changes.txt; then
-            echo "Validator module files changed"
             echo "build-validator=true" >> $GITHUB_OUTPUT
           else
-            echo "No validator module changes"
-            echo "build-validator=false" >> $GITHUB_OUTPUT
+            # Check for module-specific changes if no workflow changes
+            if grep -q '^ismd-backend-common/' relevant_changes.txt; then
+              echo "Common module files changed"
+              echo "build-common=true" >> $GITHUB_OUTPUT
+            else
+              echo "No common module changes"
+              echo "build-common=false" >> $GITHUB_OUTPUT
+            fi
+            
+            if grep -q '^ismd-backend-validator/' relevant_changes.txt; then
+              echo "Validator module files changed"
+              echo "build-validator=true" >> $GITHUB_OUTPUT
+            else
+              echo "No validator module changes"
+              echo "build-validator=false" >> $GITHUB_OUTPUT
+            fi
           fi
 
   # Build common module if changed

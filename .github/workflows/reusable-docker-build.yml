@@ -81,14 +81,25 @@ jobs:
             
             echo "Building $MODULE with tags: $IMAGE_TAG, $LATEST_TAG"
             
+            # Set build context and Dockerfile path based on whether this is a module or root build
+            if [ "$MODULE" = "root" ]; then
+              DOCKERFILE="Dockerfile"
+              BUILD_CONTEXT="."
+            else
+              DOCKERFILE="ismd-backend-${MODULE}/Dockerfile"
+              BUILD_CONTEXT="./ismd-backend-${MODULE}"
+            fi
+            
+            echo "Building with Dockerfile: $DOCKERFILE in context: $BUILD_CONTEXT"
+            
             # Build and push the image
             docker build \
               -t $IMAGE_TAG \
               -t $LATEST_TAG \
-              -f ismd-backend-${MODULE}/Dockerfile \
+              -f $DOCKERFILE \
               --build-arg MODULE_VERSION=${{ steps.version.outputs.version }} \
               --build-arg GIT_COMMIT=${{ steps.version.outputs.git_sha }} \
-              .
+              $BUILD_CONTEXT
               
             docker push $IMAGE_TAG
             docker push $LATEST_TAG
