@@ -5,13 +5,24 @@ WORKDIR /app
 # Install bash
 RUN apk add --no-cache bash
 
-# Copy the entire project
+# Copy just the necessary files first
+COPY .mvn/ .mvn
+COPY mvnw ./
+COPY pom.xml .
+
+# Copy the module's pom.xml
+COPY ismd-backend-validator/pom.xml ./ismd-backend-validator/
+# Copy the common module's pom.xml since it's a dependency
+COPY ismd-backend-common/pom.xml ./ismd-backend-common/
+
+# Make mvnw executable and download dependencies
+RUN chmod +x mvnw && \
+    ./mvnw dependency:go-offline -B
+
+# Copy the rest of the source code
 COPY . .
 
-# Make mvnw executable
-RUN chmod +x mvnw
-
-# Build the validator module (which will also build common as a dependency)
+# Build the application
 RUN ./mvnw -pl ismd-backend-validator clean package -DskipTests
 
 ### Runtime stage
