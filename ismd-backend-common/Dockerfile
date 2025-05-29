@@ -30,8 +30,14 @@ ENV GIT_COMMIT=${GIT_COMMIT}
 ARG SPRING_PROFILES_ACTIVE=production
 ENV SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
 
-# Copy the built JAR
-COPY --from=build /app/ismd-backend-common/target/ismd-backend-common-${MODULE_VERSION}.jar app.jar
+# Copy the built JAR (handle both with and without git sha in filename)
+RUN if [ -f "/app/ismd-backend-common/target/ismd-backend-common-${MODULE_VERSION}.jar" ]; then \
+       cp "/app/ismd-backend-common/target/ismd-backend-common-${MODULE_VERSION}.jar" /app/app.jar; \
+    else \
+       cp "/app/ismd-backend-common/target/ismd-backend-common-${MODULE_VERSION%-*}.jar" /app/app.jar; \
+    fi
+
+COPY --from=build /app/app.jar app.jar
 
 # Add labels for better image identification
 LABEL org.opencontainers.image.title="ISMD Backend Common"
