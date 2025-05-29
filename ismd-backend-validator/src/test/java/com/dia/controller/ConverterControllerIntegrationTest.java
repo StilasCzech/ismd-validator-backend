@@ -285,3 +285,4 @@ class ConverterControllerIntegrationTest {
         verify(converterService).exportArchiToJson();
     }
 }
+
