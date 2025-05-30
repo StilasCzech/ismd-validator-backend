@@ -30,6 +30,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Set up environment
+        id: setup-env
+        run: |
+          if [ "${{ inputs.branch }}" = "main" ]; then
+            echo "REPO_NAME=ismd-validator-backend" >> $GITHUB_ENV
+          else
+            echo "REPO_NAME=ismd-validator-backend-${{ inputs.branch }}" >> $GITHUB_ENV
+          fi
+
       - name: Get version info
         id: version
         run: |
@@ -74,15 +83,8 @@ jobs:
           for MODULE in "${MODULES[@]}"; do
             echo "Building module: $MODULE"
             
-            # Set repository name based on branch (empty for main, "-branch" for others)
-            if [ "${{ inputs.branch }}" = "main" ]; then
-              REPO_NAME="ismd-validator-backend"
-            else
-              REPO_NAME="ismd-validator-backend-${inputs.branch}"
-            fi
-            
-            IMAGE_TAG="ghcr.io/StilasCzech/${REPO_NAME}/ismd-backend-${MODULE}:${{ steps.version.outputs.version }}"
-            LATEST_TAG="ghcr.io/StilasCzech/${REPO_NAME}/ismd-backend-${MODULE}:latest"
+            IMAGE_TAG="ghcr.io/StilasCzech/${{ env.REPO_NAME }}/ismd-backend-${MODULE}:${{ steps.version.outputs.version }}"
+            LATEST_TAG="ghcr.io/StilasCzech/${{ env.REPO_NAME }}/ismd-backend-${MODULE}:latest"
             echo "Building $MODULE with tags: $IMAGE_TAG, $LATEST_TAG"
             
             # Build and push the image using the root Dockerfile
