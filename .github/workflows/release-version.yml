@@ -37,11 +37,7 @@ jobs:
 
       - name: Get current version in dev
         id: current-version
-        run: |
-          # Get version from root POM
-          VERSION=$(./mvnw help:evaluate -DforceStdout -q -Dexpression=project.version)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Current version: $VERSION"
+        run: echo "version=$(./mvnw help:evaluate -DforceStdout -q -Dexpression=project.version)" >> $GITHUB_OUTPUT
 
       - name: Get version in main
         id: main-version
@@ -64,28 +60,18 @@ jobs:
             NEW_VERSION="${{ github.event.inputs.version }}"
             echo "User provided version: $NEW_VERSION"
           else
-            # Check if version in dev already differs from main (without -SNAPSHOT)
-            DEV_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-SNAPSHOT//')
-            if [ "$DEV_VERSION" != "$MAIN_VERSION" ]; then
-              # Version already changed in code, use as is (without -SNAPSHOT)
-              NEW_VERSION="$DEV_VERSION"
+            # Check if version in dev already differs from main
+            if [ "$CURRENT_VERSION" != "$MAIN_VERSION" ]; then
+              # Version already changed in code, use as is
+              NEW_VERSION="$CURRENT_VERSION"
               echo "Using existing version from code: $NEW_VERSION"
             else
               # Auto-increment patch version
-              BASE_VERSION=$(echo "$MAIN_VERSION" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+')
-              NEW_PATCH=$(echo "$BASE_VERSION" | awk -F. '{print $3+1}')
-              NEW_VERSION="$(echo "$BASE_VERSION" | cut -d. -f1-2).$NEW_PATCH"
-              echo "Auto-incremented version: $NEW_VERSION (patch)"
+              NEW_VERSION=$(echo $CURRENT_VERSION | awk -F. -v OFS=. '{$NF++;print}')
+              echo "Auto-incremented version: $NEW_VERSION"
             fi
           fi
-          
-          # Store the next dev version (NEW_VERSION+1-SNAPSHOT)
-          NEXT_PATCH=$(echo "$NEW_VERSION" | awk -F. '{print $3+1}')
-          NEXT_DEV_VERSION="$(echo "$NEW_VERSION" | cut -d. -f1-2).$NEXT_PATCH-SNAPSHOT"
-          
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "next_dev_version=$NEXT_DEV_VERSION" >> $GITHUB_OUTPUT
-          echo "Will create release $NEW_VERSION (next dev: $NEXT_DEV_VERSION)"
 
       - name: Create release branch
         id: create-branch
@@ -99,36 +85,38 @@ jobs:
           # Create a new branch from dev
           git checkout -b $BRANCH_NAME
           
-          # Update to release version (remove -SNAPSHOT if present)
-          RELEASE_VERSION="${{ steps.new-version.outputs.version }}"
+          # Check if the version needs to be updated
+          CURRENT_VERSION="${{ steps.current-version.outputs.version }}"
+          NEW_VERSION="${{ steps.new-version.outputs.version }}"
           
-          echo "Updating to release version: $RELEASE_VERSION"
-          ./mvnw versions:set -DnewVersion="$RELEASE_VERSION" -DgenerateBackupPoms=false -DprocessAllModules=true
+          if [ "$CURRENT_VERSION" != "$NEW_VERSION" ]; then
+            echo "Updating version from $CURRENT_VERSION to $NEW_VERSION"
+            # Update version in all modules
+            ./mvnw versions:set -DnewVersion="$NEW_VERSION" -DgenerateBackupPoms=false -DprocessAllModules=true
+            
+            # Configure git
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            
+            # Commit the version change in all modules
+            git add .
+            git commit -m "Release v$NEW_VERSION"
+            echo "Version updated and committed"
+          else
+            echo "Version is already $CURRENT_VERSION, no update needed"
+            # Configure git anyway for later steps
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+          fi
           
-          # Configure git
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # Commit the version change
-          git add .
-          git commit -m "Release v$RELEASE_VERSION"
-          echo "Release version $RELEASE_VERSION committed"
-          
-          # Update dev branch to next development version
-          git checkout dev
-          NEXT_DEV_VERSION="${{ steps.new-version.outputs.next_dev_version }}"
-          echo "Updating dev to next development version: $NEXT_DEV_VERSION"
-          ./mvnw versions:set -DnewVersion="$NEXT_DEV_VERSION" -DgenerateBackupPoms=false -DprocessAllModules=true
-          git add .
-          git commit -m "Bump version to $NEXT_DEV_VERSION"
-          git push origin dev
-          
-          # Switch back to release branch
-          git checkout $BRANCH_NAME
+      - name: Run tests
+        run: |
+          # Build and run tests to ensure the release is stable
+          ./mvnw clean test
           
       - name: Push release branch
         run: |
-          # Push the release branch
+          # Only push if tests pass
           git push origin ${{ steps.create-branch.outputs.branch_name }}
 
       - name: Create Pull Request
