@@ -58,11 +58,16 @@ jobs:
       - name: Build and push Docker images
         run: |
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          MODULES=("${{ inputs.module }}")
           
-          # If no specific module is specified, build both
+          # Determine which modules to build
           if [ -z "${{ inputs.module }}" ]; then
+            # Build all modules
             MODULES=("common" "validator")
+            MODULE_ARG="."  # Build everything
+          else
+            # Build specific module
+            MODULES=("${{ inputs.module }}")
+            MODULE_ARG="ismd-backend-${{ inputs.module }}"
           fi
           
           # Build and push each module
@@ -85,15 +90,23 @@ jobs:
             # Build and push the image using the root Dockerfile
             docker build \
               --target ${MODULE}-runtime \
+              --build-arg MODULE="${MODULE_ARG}" \
+              --build-arg MODULE_VERSION="${{ steps.version.outputs.version }}" \
+              --build-arg GIT_COMMIT="${{ steps.version.outputs.git_sha }}" \
               -t $IMAGE_TAG \
               -t $LATEST_TAG \
-              --build-arg MODULE_VERSION=${{ steps.version.outputs.version }} \
-              --build-arg GIT_COMMIT=${{ steps.version.outputs.git_sha }} \
               .
-              
+            
+            # Push the built image
             docker push $IMAGE_TAG
-            docker push $LATEST_TAG
+            
+            # Only push latest tag for main branch
+            if [ "${{ inputs.branch }}" = "main" ]; then
+              docker push $LATEST_TAG
+            fi
             
             echo "Successfully pushed $IMAGE_TAG"
-            echo "Successfully pushed $LATEST_TAG"
+            if [ "${{ inputs.branch }}" = "main" ]; then
+              echo "Successfully pushed $LATEST_TAG"
+            fi
           done
