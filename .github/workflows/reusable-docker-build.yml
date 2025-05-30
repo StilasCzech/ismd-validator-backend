@@ -30,17 +30,18 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Set up environment
-        id: setup-env
+      - name: Set up repository path
+        id: repo-setup
         run: |
-          if [ "${{ inputs.branch }}" = "main" ]; then
-            REPO_NAME="ismd-validator-backend"
-          else
-            REPO_NAME="ismd-validator-backend-${{ inputs.branch }}"
+          # Convert repository name to lowercase and set as base path
+          REPO_PATH=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          
+          # Append branch suffix for non-main branches
+          if [ "${{ inputs.branch }}" != "main" ]; then
+            REPO_PATH="${REPO_PATH}-${{ inputs.branch }}"
           fi
-          # Convert to lowercase for Docker compatibility
-          REPO_NAME=$(echo "$REPO_NAME" | tr '[:upper:]' '[:lower:]')
-          echo "REPO_NAME=$REPO_NAME" >> $GITHUB_ENV
+          
+          echo "REPO_PATH=${REPO_PATH}" >> $GITHUB_ENV
 
       - name: Get version info
         id: version
@@ -86,9 +87,13 @@ jobs:
           for MODULE in "${MODULES[@]}"; do
             echo "Building module: $MODULE"
             
-            IMAGE_TAG="ghcr.io/StilasCzech/${{ env.REPO_NAME }}/ismd-backend-${MODULE}:${{ steps.version.outputs.version }}"
-            LATEST_TAG="ghcr.io/StilasCzech/${{ env.REPO_NAME }}/ismd-backend-${MODULE}:latest"
-            echo "Building $MODULE with tags: $IMAGE_TAG, $LATEST_TAG"
+            # Use the precomputed repository path
+            IMAGE_TAG="ghcr.io/${{ env.REPO_PATH }}/ismd-backend-${MODULE}:${{ steps.version.outputs.version }}"
+            LATEST_TAG="ghcr.io/${{ env.REPO_PATH }}/ismd-backend-${MODULE}:latest"
+            
+            echo "Building $MODULE with tags:"
+            echo "  - $IMAGE_TAG"
+            echo "  - $LATEST_TAG"
             
             # Build and push the image using the root Dockerfile
             docker build \
