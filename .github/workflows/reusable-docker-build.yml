@@ -34,10 +34,13 @@ jobs:
         id: setup-env
         run: |
           if [ "${{ inputs.branch }}" = "main" ]; then
-            echo "REPO_NAME=ismd-validator-backend" >> $GITHUB_ENV
+            REPO_NAME="ismd-validator-backend"
           else
-            echo "REPO_NAME=ismd-validator-backend-${{ inputs.branch }}" >> $GITHUB_ENV
+            REPO_NAME="ismd-validator-backend-${{ inputs.branch }}"
           fi
+          # Convert to lowercase for Docker compatibility
+          REPO_NAME=$(echo "$REPO_NAME" | tr '[:upper:]' '[:lower:]')
+          echo "REPO_NAME=$REPO_NAME" >> $GITHUB_ENV
 
       - name: Get version info
         id: version
