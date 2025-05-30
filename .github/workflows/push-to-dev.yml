@@ -22,7 +22,24 @@ jobs:
   run-tests:
     uses: ./.github/workflows/reusable-test.yml
     
+  check-version-bump:
+    runs-on: ubuntu-latest
+    outputs:
+      skip-build: ${{ steps.check-commit.outputs.skip-build }}
+    steps:
+      - name: Check for version bump commit
+        id: check-commit
+        run: |
+          if [[ "${{ github.event.head_commit.message }}" =~ (Release v|Bump version) ]]; then
+            echo "::set-output name=skip-build::true"
+            echo "Skipping build: Version bump detected"
+          else
+            echo "::set-output name=skip-build::false"
+          fi
+    
   check-changes:
+    needs: check-version-bump
+    if: needs.check-version-bump.outputs.skip-build != 'true'
     runs-on: ubuntu-latest
     outputs:
       build-common: ${{ steps.check-files.outputs.build-common }}
