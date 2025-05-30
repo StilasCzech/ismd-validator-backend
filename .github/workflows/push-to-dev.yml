@@ -21,7 +21,7 @@ permissions:
 jobs:
   run-tests:
     uses: ./.github/workflows/reusable-test.yml
-    
+  
   check-version-bump:
     runs-on: ubuntu-latest
     outputs:
@@ -31,12 +31,12 @@ jobs:
         id: check-commit
         run: |
           if [[ "${{ github.event.head_commit.message }}" =~ (Release v|Bump version) ]]; then
-            echo "::set-output name=skip-build::true"
+            echo "skip-build=true" >> $GITHUB_OUTPUT
             echo "Skipping build: Version bump detected"
           else
-            echo "::set-output name=skip-build::false"
+            echo "skip-build=false" >> $GITHUB_OUTPUT
           fi
-    
+  
   check-changes:
     needs: check-version-bump
     if: needs.check-version-bump.outputs.skip-build != 'true'
@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2  # Need previous commit for comparison
-      
+
       - name: Check for file changes
         id: check-files
         run: |
@@ -90,7 +90,7 @@ jobs:
               echo "No common module changes"
               echo "build-common=false" >> $GITHUB_OUTPUT
             fi
-            
+          
             if grep -q '^ismd-backend-validator/' relevant_changes.txt; then
               echo "Validator module files changed"
               echo "build-validator=true" >> $GITHUB_OUTPUT
